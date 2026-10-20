@@ -1,0 +1,26 @@
+# Сборки .NET
+**/bin/
+**/obj/
+**/out/
+
+# Локальные файлы Visual Studio и Rider
+.vs/
+.idea/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# Временные файлы и логи
+*.log
+*.tmp
+*.cache
+
+# Пакеты и результаты публикации
+**/packages/
+**/publish/
+artifacts/
+
+# Файлы операционной системы
+.DS_Store
+Thumbs.db
