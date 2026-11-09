@@ -2,31 +2,23 @@ using Microsoft.Extensions.Hosting;
 
 namespace laba;
 
-public class KeyboardListenerService : BackgroundService
+public class KeyboardListenerService(IHostApplicationLifetime lifetime) : BackgroundService
 {
-    private readonly IHostApplicationLifetime _lifetime;
-
-    public KeyboardListenerService(IHostApplicationLifetime lifetime)
+    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        _lifetime = lifetime;
-    }
+        if (Console.IsInputRedirected) return;
 
-    protected override Task ExecuteAsync(CancellationToken stoppingToken)
-    {
-        return Task.Run(() =>
+        while (!stoppingToken.IsCancellationRequested)
         {
-            while (!stoppingToken.IsCancellationRequested)
+            if (Console.KeyAvailable)
             {
-                if (Console.KeyAvailable)
-                {
-                    Console.ReadKey(intercept: true);
-                    Console.WriteLine("\n[Получен сигнал от пользователя] Выполнение прервано нажатием клавиши.");
-                    _lifetime.StopApplication();
-                    break;
-                }
-
-                Thread.Sleep(200);
+                Console.ReadKey(intercept: true);
+                Console.WriteLine("\n[Получен сигнал от пользователя] Выполнение прервано нажатием клавиши.");
+                lifetime.StopApplication();
+                break;
             }
-        }, stoppingToken);
+
+            await Task.Delay(200, stoppingToken);
+        }
     }
 }

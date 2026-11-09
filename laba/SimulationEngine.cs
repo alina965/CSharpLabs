@@ -18,12 +18,20 @@ public class SimulationEngine : ISimulationEngine
     private StudentHistory _history = null!;
     private int _currentDay;
     private int _totalPleasure;
+    private DayResult? _expulsionResult;
 
-    public SimulationEngine(IStrategy strategy)
+    public SimulationEngine(IStrategy strategy) : this(strategy, new Random()) { }
+
+    public SimulationEngine(IStrategy strategy, Random rng, Teacher[]? teachers = null)
     {
         _strategy = strategy;
-        _rng = new Random();
+        _rng = rng;
         Reset();
+        if (teachers is not null)
+        {
+            if (teachers.Length != SubjectCount) throw new ArgumentException("Нужно шесть преподавателей.", nameof(teachers));
+            _teachers = (Teacher[])teachers.Clone();
+        }
     }
 
     public void Reset()
@@ -33,13 +41,17 @@ public class SimulationEngine : ISimulationEngine
         _history = new StudentHistory();
         _currentDay = 0;
         _totalPleasure = 0;
+        _expulsionResult = null;
     }
 
     public DayResult Step()
     {
-        _currentDay++;
+        if (_expulsionResult is not null) return _expulsionResult;
 
-        var attend = _strategy.DecideDay(_currentDay, _history);
+        var attend = _strategy.DecideDay(_currentDay + 1, _history);
+        if (attend is null || attend.Length != SubjectCount)
+            throw new InvalidOperationException("Стратегия должна вернуть шесть решений.");
+        _currentDay++;
         var todayAsked = new bool[SubjectCount];
 
         for (var i = 0; i < SubjectCount; i++)
@@ -53,7 +65,8 @@ public class SimulationEngine : ISimulationEngine
             if (!went && asked)
             {
                 _totalPleasure = 0;
-                return new DayResult
+                _history.Record(_currentDay, subject, false, null);
+                return _expulsionResult = new DayResult
                 {
                     Day = _currentDay,
                     TotalPleasure = 0,

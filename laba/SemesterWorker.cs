@@ -38,10 +38,6 @@ public class SemesterWorker : BackgroundService
                 break;
             }
 
-            if (result.Day < 100) continue;
-            Console.WriteLine("\nСеместр успешно завершён!");
-            _lifetime.StopApplication();
-            break;
         }
     }
 }

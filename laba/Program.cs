@@ -8,6 +8,18 @@ public class Program
 {
     public static async Task Main(string[] args)
     {
+        if (args.Contains("--console"))
+        {
+            var engine = new SimulationEngine(new AlwaysAttendStrategy());
+            DayResult result = null!;
+            for (var day = 0; day < 100; day++)
+            {
+                result = engine.Step();
+                if (result.Expelled) break;
+            }
+            Console.WriteLine($"Дней: {result.Day}. Общее удовольствие: {result.TotalPleasure}. Среднее в день: {result.AveragePleasurePerDay:F2}. Отчислен: {result.Expelled}");
+            return;
+        }
         var builder = Host.CreateDefaultBuilder(args)
             .ConfigureLogging(logging =>
             {
@@ -25,7 +37,7 @@ public class Program
                 services.AddHostedService<KeyboardListenerService>();
             });
 
-        var host = builder.Build();
+        using var host = builder.Build();
         await host.RunAsync();
     }
 }

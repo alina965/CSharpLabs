@@ -13,8 +13,12 @@ public class TeacherRule
     public Subject A { get; }
     public Subject B { get; }
 
-    private TeacherRule(AskRuleKind kind, Subject a = default, Subject b =  default)
+    public TeacherRule(AskRuleKind kind, Subject a = default, Subject b = default)
     {
+        if (!Enum.IsDefined(kind)) throw new ArgumentOutOfRangeException(nameof(kind));
+        if (!Enum.IsDefined(a) || !Enum.IsDefined(b)) throw new ArgumentOutOfRangeException(nameof(a));
+        if (kind == AskRuleKind.XorYesterdayAb && a == b)
+            throw new ArgumentException("Предметы A и Б должны отличаться.");
         Kind = kind;
         A = a;
         B = b;
@@ -25,12 +29,8 @@ public class TeacherRule
         var kind = (AskRuleKind)rng.Next(3);
         var a = (Subject)rng.Next(6);
 
-        Subject b;
-        do
-        {
-            b = (Subject)rng.Next(6);
-            
-        } while (b == a);
+        var bIndex = rng.Next(5);
+        var b = (Subject)(bIndex >= (int)a ? bIndex + 1 : bIndex);
 
         return kind switch
         {
