@@ -44,7 +44,7 @@ public class TeacherRule
 public class Teacher(Subject subj, TeacherRule rule)
 {
     public Subject Subject = subj;
-    private TeacherRule Rule { get; } = rule;
+    public TeacherRule Rule { get; } = rule;
 
     public bool DecideAsk(bool[] yesterdayAsked, Random rng)
     {

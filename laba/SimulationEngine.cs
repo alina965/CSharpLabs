@@ -20,7 +20,7 @@ public class SimulationEngine : ISimulationEngine
     private int _totalPleasure;
     private DayResult? _expulsionResult;
 
-    public SimulationEngine(IStrategy strategy) : this(strategy, new Random()) { }
+    public SimulationEngine(IStrategy strategy) : this(strategy, new ReplayRandom(Random.Shared.Next())) { }
 
     public SimulationEngine(IStrategy strategy, Random rng, Teacher[]? teachers = null)
     {
@@ -104,5 +104,64 @@ public class SimulationEngine : ISimulationEngine
             teachers[i] = new Teacher((Subject)i, TeacherRule.CreateRandom(rng));
         }
         return teachers;
+    }
+
+    public SemesterState Export()
+    {
+        if (_rng is not ReplayRandom random)
+        {
+            throw new InvalidOperationException("Для сохранения нужен ReplayRandom.");
+        }
+        
+        return new SemesterState(
+            Day: _currentDay,
+            TotalPleasure: _totalPleasure,
+            Expelled: _expulsionResult is not null,
+            Teachers: _teachers.Select(teacher => new TeacherState(
+                teacher.Subject,
+                teacher.Rule.Kind,
+                teacher.Rule.A,
+                teacher.Rule.B)).ToArray(),
+            YesterdayAsked: (bool[])_yesterdayAsked.Clone(),
+            History: _history.Export(),
+            RandomSeed: random.Seed,
+            RandomDraws: random.Draws);
+    }
+
+    private SimulationEngine(IStrategy strategy, SemesterState state)
+    {
+        _strategy = strategy;
+        
+        _rng = new ReplayRandom(state.RandomSeed,  state.RandomDraws);
+        
+        _teachers = state.Teachers.Select(teacher => new Teacher(
+            teacher.Subject,
+            new TeacherRule(
+                teacher.Kind,
+                teacher.A,
+                teacher.B)))
+            .ToArray();
+        
+        _yesterdayAsked = (bool[])state.YesterdayAsked.Clone();
+        _history = StudentHistory.Restore(state.History);
+        
+        _currentDay = state.Day;
+        _totalPleasure = state.TotalPleasure;
+        
+        _expulsionResult = state.Expelled ? new DayResult()
+            {
+                Day = state.Day,
+                TotalPleasure = 0,
+                AveragePleasurePerDay = 0,
+                Expelled = true
+            }
+            : null;
+    }
+
+    public static SimulationEngine Restore(
+        IStrategy strategy,
+        SemesterState semesterState)
+    {
+        return new SimulationEngine(strategy, semesterState);
     }
 }

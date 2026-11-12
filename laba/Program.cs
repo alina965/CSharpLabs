@@ -8,6 +8,12 @@ public class Program
 {
     public static async Task Main(string[] args)
     {
+        if (args.Length > 0 && (args[0] == "--db-new" || args[0] == "--db-resume"))
+        {
+            await DbMode.RunAsync(args);
+            return;
+        }
+        
         if (args.Contains("--console"))
         {
             var engine = new SimulationEngine(new AlwaysAttendStrategy());

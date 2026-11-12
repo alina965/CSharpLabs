@@ -1,22 +1,70 @@
-# Лабораторные 1–3
+# Мастер прогулов
 
-Требуется .NET 10 SDK.
+## Лабораторные
 
-## Запуск
+- **1 — консоль:** один семестр до 100 дней, итоговое и среднее удовольствие.
+- **2 — Generic Host:** день каждые 5 секунд, DI, остановка клавишей или при отчислении.
+- **3 — unit-тесты:** основные сценарии правил, исходов пары, истории и отчисления. Набор сокращён; все требования задания к тестам стратегии он не покрывает.
+- **4 — PostgreSQL:** сохранение каждого дня, новый семестр и продолжение, четыре интеграционных теста.
+- **5–6 — HTTP и очереди:** пока не реализованы.
 
-Из корня проекта:
+Требуется .NET 10 SDK; для лабораторной 4 — PostgreSQL (ниже запуск через Docker Desktop).
+Стратегия всегда посещает занятия: за 100 дней получает 100 удовольствия от пирожков. Конкурсная стратегия не реализована.
+
+## Запуск приложения
+
+Команды выполняются в PowerShell из корня проекта.
 
 ```powershell
-# Лаба 1: один семестр, максимум 100 дней
- dotnet run --project laba -- --console
-# Лаба 2: Generic Host, новый день каждые 5 секунд
- dotnet run --project laba
-# Все тесты
- dotnet test laba.Tests/laba.Tests.csproj
+# Лаба 1: один семестр без БД
+dotnet run --project laba -- --console
+
+# Лаба 2: непрерывная работа без БД
+dotnet run --project laba
 ```
 
-Host работает до отчисления или остановки пользователем. В интерактивной консоли любая клавиша завершает приложение; также работает Ctrl+C. При перенаправленном вводе чтение клавиш отключено. Ограничение в 100 дней относится к консольному режиму; для Host в условии явно указана бесконечная работа.
+Для лабы 4 открой Docker Desktop. При первой настройке создай контейнер:
 
-Используется AlwaysAttendStrategy: студент всегда посещает все пары. Это допустимая безопасная стратегия, дающая 100 удовольствия за семестр от пирожков, но она не претендует на победу в конкурсе стратегий. Конкурсный интерфейс ISkipStrategy с Name и отдельный проект стратегии пока не реализованы; это отдельная часть задания.
+```powershell
+docker run --name laba-postgres -e POSTGRES_USER=postgres -e POSTGRES_PASSWORD=laba_password -e POSTGRES_DB=laba -p 127.0.0.1:5432:5432 -v laba_pgdata:/var/lib/postgresql/data -d postgres:17
+```
 
-Program выбирает режим и регистрирует сервисы. SemesterWorker управляет периодическим запуском, KeyboardListenerService — клавиатурой, SimulationEngine — правилами симуляции, Teacher — вопросами преподавателя, StudentHistory — доступными студенту наблюдениями. Стратегия получает только историю, а не скрытые правила.
+Если контейнер уже создан, запускай его командой `docker start laba-postgres`.
+Проверь готовность: `docker exec laba-postgres pg_isready -U postgres -d laba` — ожидается `accepting connections`.
+
+```powershell
+# Подключение нужно задавать в каждом новом терминале
+$env:LABA_DB = "Host=localhost;Port=5432;Database=laba;Username=postgres;Password=laba_password"
+
+# Новый семестр: сохрани напечатанный идентификатор
+dotnet run --project laba -- --db-new
+
+# Продолжение: замени ID на идентификатор своего семестра
+dotnet run --project laba -- --db-resume ID
+```
+
+Таблица создаётся автоматически. Режим с БД завершается после 100 дней или отчисления; завершённый семестр продолжить нельзя.
+В режимах Host остановка — любая клавиша в интерактивной консоли или Ctrl+C. При перенаправленном вводе чтение клавиш отключено.
+После остановки продолжение начинается со следующего дня после последнего сохранённого.
+
+## Тесты
+
+```powershell
+# Только unit-тесты: PostgreSQL не нужен
+dotnet test laba.Tests/laba.Tests.csproj --filter "FullyQualifiedName!~PostgresTests"
+```
+
+Для интеграционных тестов нужен работающий контейнер. Создай отдельную базу один раз (если она уже существует, пропусти команду):
+
+```powershell
+docker exec laba-postgres psql -U postgres -d postgres -c "CREATE DATABASE laba_tests;"
+$env:LABA_TEST_DB = "Host=localhost;Port=5432;Database=laba_tests;Username=postgres;Password=laba_password"
+
+# Только четыре интеграционных теста
+dotnet test laba.Tests/laba.Tests.csproj --filter "FullyQualifiedName~PostgresTests"
+
+# Все тесты: LABA_TEST_DB также должна быть задана
+dotnet test laba.Tests/laba.Tests.csproj
+```
+
+Тесты удаляют собственные записи после выполнения. Данные Docker сохраняются в томе `laba_pgdata`.
